@@ -1,0 +1,49 @@
+name: Build AGO Suivi DPS
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:   # permet de lancer manuellement depuis GitHub
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            nom: AGO-Windows
+          - os: macos-13        # Intel x86_64 — tourne aussi sur Apple Silicon via Rosetta 2
+            nom: AGO-MacOS
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compiler avec PyInstaller
+        run: python -m PyInstaller ago.spec
+
+      - name: Uploader l'exécutable Windows
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.nom }}
+          path: dist/AGO-Suivi-v*.exe
+
+      - name: Uploader l'exécutable macOS
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.nom }}
+          path: dist/AGO-Suivi-v*
