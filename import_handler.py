@@ -130,6 +130,21 @@ def importer_evenements(fichier_path):
         c.execute("SELECT id FROM semaines WHERE numero = ?", (int(week_num),))
         semaine_id = c.fetchone()[0]
 
+        # Sauvegarder les renforts manuels avant écrasement
+        c.execute("DELETE FROM renforts_backup WHERE semaine_num = ?", (int(week_num),))
+        c.execute("""
+            INSERT INTO renforts_backup (semaine_num, antenne, jour, nom_dps, nb, tl, parent_antenne, parent_jour, parent_nom)
+            SELECT ?, d.antenne, d.jour, d.nom_dps, d.nb, d.tl,
+                   p.antenne, p.jour, p.nom_dps
+            FROM dps d
+            LEFT JOIN dps p ON p.id = d.parent_dps_id
+            WHERE d.semaine_id = ? AND d.est_manuel = 1
+        """, (int(week_num), semaine_id))
+        c.execute("SELECT COUNT(*) FROM renforts_backup WHERE semaine_num = ?", (int(week_num),))
+        nb_backup = c.fetchone()[0]
+        if nb_backup > 0:
+            logs.append(f"💾 {nb_backup} renfort(s) manuel(s) sauvegardé(s) — utilisez 'Réinjecter' pour les restaurer")
+
         c.execute("DELETE FROM dps WHERE semaine_id = ?", (semaine_id,))
 
         df_week_parents = df_week[df_week['parent_row'].isna()]

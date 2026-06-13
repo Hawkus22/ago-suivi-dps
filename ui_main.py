@@ -149,6 +149,16 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
+        self.btn_reinjecter = QPushButton("🔄 Réinjecter les renforts")
+        self.btn_reinjecter.clicked.connect(self.reinjecter_renforts)
+        self.btn_reinjecter.setEnabled(False)
+        self.btn_reinjecter.setStyleSheet("font-weight: bold; padding: 8px; background-color: #E65100; color: white;")
+        self.btn_reinjecter.setToolTip(
+            "Restaurer les renforts ajoutés manuellement avant le dernier ré-import.\n"
+            "Ce bouton s'active automatiquement si des renforts manuels ont été détectés\n"
+            "lors du dernier import de la semaine active.")
+        toolbar.addWidget(self.btn_reinjecter)
+
         self.btn_synthese = QPushButton("📊 Synthèse de la semaine")
         self.btn_synthese.clicked.connect(self.synthese_semaine)
         self.btn_synthese.setEnabled(False)
@@ -281,12 +291,14 @@ class MainWindow(QMainWindow):
             self.btn_synthese.setEnabled(False)
             self.table.setRowCount(0)
             self.frozen_table.setRowCount(0)
+        self._refresh_btn_reinjecter()
 
     def on_semaine_changed(self, index):
         if index < 0:
             return
         self.current_semaine = self.combo_semaine.itemData(index)
         self.charger_vue()
+        self._refresh_btn_reinjecter()
 
     # ---------------------------------------------------------------- vue tableau
 
@@ -547,6 +559,97 @@ class MainWindow(QMainWindow):
             self.charger_vue()
             self.statusBar().showMessage("DPS supprimé.")
 
+    # -------------------------------------------------- réinjection renforts manuels
+
+    def _refresh_btn_reinjecter(self):
+        if not self.current_semaine:
+            self.btn_reinjecter.setEnabled(False)
+            self.btn_reinjecter.setText("🔄 Réinjecter les renforts")
+            return
+        conn = get_conn()
+        c = conn.cursor()
+        try:
+            c.execute("SELECT COUNT(*) FROM renforts_backup WHERE semaine_num = ?", (self.current_semaine,))
+            count = c.fetchone()[0]
+        except Exception:
+            count = 0
+        conn.close()
+        if count > 0:
+            s = "s" if count > 1 else ""
+            self.btn_reinjecter.setEnabled(True)
+            self.btn_reinjecter.setText(f"🔄 Réinjecter ({count} renfort{s})")
+        else:
+            self.btn_reinjecter.setEnabled(False)
+            self.btn_reinjecter.setText("🔄 Réinjecter les renforts")
+
+    def reinjecter_renforts(self):
+        if not self.current_semaine:
+            return
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute("SELECT id FROM semaines WHERE numero = ?", (self.current_semaine,))
+        res = c.fetchone()
+        if not res:
+            conn.close()
+            return
+        semaine_id = res[0]
+
+        c.execute("""SELECT antenne, jour, nom_dps, nb, tl, parent_antenne, parent_jour, parent_nom
+                     FROM renforts_backup WHERE semaine_num = ?""", (self.current_semaine,))
+        backup = c.fetchall()
+
+        if not backup:
+            QMessageBox.information(self, "Réinjection", "Aucun renfort manuel sauvegardé pour cette semaine.")
+            conn.close()
+            return
+
+        injectes = 0
+        deja_presents = []
+        introuvables = []
+
+        for antenne, jour, nom_dps, nb, tl, parent_ant, parent_jour, parent_nom in backup:
+            # Vérifier si un renfort identique existe déjà (doublon issu du nouvel import)
+            c.execute("""SELECT id FROM dps
+                         WHERE semaine_id=? AND antenne=? AND jour=? AND nom_dps=? AND est_renfort=1""",
+                      (semaine_id, antenne, jour, nom_dps))
+            if c.fetchone():
+                deja_presents.append(f"{nom_dps}  ({antenne} / {jour})")
+                continue
+
+            parent_db_id = None
+            if parent_ant and parent_jour and parent_nom:
+                c.execute("""SELECT id FROM dps
+                             WHERE semaine_id=? AND antenne=? AND jour=? AND nom_dps=? AND est_renfort=0""",
+                          (semaine_id, parent_ant, parent_jour, parent_nom))
+                res_p = c.fetchone()
+                if res_p:
+                    parent_db_id = res_p[0]
+
+            if parent_db_id is not None:
+                c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id, est_manuel)
+                             VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1)""",
+                          (semaine_id, antenne, jour, nom_dps, nb, tl, parent_db_id))
+                injectes += 1
+            else:
+                introuvables.append(f"{nom_dps}  →  parent : {parent_ant} / {parent_jour}")
+
+        conn.commit()
+        c.execute("DELETE FROM renforts_backup WHERE semaine_num = ?", (self.current_semaine,))
+        conn.commit()
+        conn.close()
+
+        lignes = [f"✅ {injectes} renfort(s) réinjecté(s) avec succès."]
+        if deja_presents:
+            lignes.append(f"\nℹ️ {len(deja_presents)} renfort(s) déjà présent(s) dans l'import (ignorés) :")
+            lignes.extend(f"  • {l}" for l in deja_presents)
+        if introuvables:
+            lignes.append(f"\n⚠️ {len(introuvables)} renfort(s) non retrouvé(s)\n(DPS parent introuvable après ré-import) :")
+            lignes.extend(f"  • {l}" for l in introuvables)
+
+        QMessageBox.information(self, "Réinjection des renforts manuels", "\n".join(lignes))
+        self.charger_vue()
+        self._refresh_btn_reinjecter()
+
     # ------------------------------------------------------------------- export
 
     def exporter_excel(self):
@@ -742,9 +845,29 @@ class MainWindow(QMainWindow):
       et tous ses renforts [R] associés.</li>
 </ul>
 
-<h3>7. Exporter</h3>
+<h3>7. Réinjecter les renforts manuels</h3>
 <ul>
-  <li>Cliquez sur <b>📤 2. Exporter vers Excel AGO</b> pour générer
+  <li>Lors d'un <b>ré-import</b> d'une semaine, les renforts ajoutés manuellement
+      (via <i>Proposer des renforts</i>) sont sauvegardés automatiquement.</li>
+  <li>Le bouton <b>🔄 Réinjecter</b> s'active dans la barre d'outils et indique
+      le nombre de renforts en attente.</li>
+  <li>Cliquez dessus pour les restaurer. L'appli vérifie les doublons :
+      un renfort déjà présent dans le nouvel import ne sera pas créé en double.</li>
+  <li>Si le DPS parent a changé de nom côté portail, le renfort est signalé
+      comme <i>non retrouvé</i> dans le résumé.</li>
+</ul>
+
+<h3>8. Synthèse de la semaine</h3>
+<ul>
+  <li>Cliquez sur <b>📊 Synthèse de la semaine</b> pour un récapitulatif complet.</li>
+  <li><b>📱 Copier pour WhatsApp</b> — génère un texte formaté (gras, italique)
+      prêt à coller dans une conversation.</li>
+  <li><b>🖨️ Imprimer</b> — envoie la synthèse vers l'imprimante ou PDF.</li>
+</ul>
+
+<h3>9. Exporter vers Excel</h3>
+<ul>
+  <li>Menu <b>Fichier → 📤 Exporter vers Excel AGO</b> pour générer
       un fichier .xlsx formaté avec couleurs et en-têtes sur 2 niveaux.</li>
 </ul>
 """)

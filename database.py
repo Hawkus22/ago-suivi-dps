@@ -33,6 +33,24 @@ def init_db():
         FOREIGN KEY(semaine_id) REFERENCES semaines(id),
         FOREIGN KEY(parent_dps_id) REFERENCES dps(id)
     )''')
+    # Migration : colonne est_manuel (renforts créés manuellement depuis l'appli)
+    try:
+        c.execute("ALTER TABLE dps ADD COLUMN est_manuel INTEGER DEFAULT 0")
+    except Exception:
+        pass  # Colonne déjà présente
+    # Table de sauvegarde des renforts manuels avant ré-import
+    c.execute('''CREATE TABLE IF NOT EXISTS renforts_backup (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        semaine_num INTEGER,
+        antenne TEXT,
+        jour TEXT,
+        nom_dps TEXT,
+        nb INTEGER DEFAULT 0,
+        tl INTEGER DEFAULT 0,
+        parent_antenne TEXT,
+        parent_jour TEXT,
+        parent_nom TEXT
+    )''')
     conn.commit()
     conn.close()
 

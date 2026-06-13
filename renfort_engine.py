@@ -62,8 +62,8 @@ def ajouter_renforts(semaine_id, dps_parent_id, antenne, jour, nom_dps, nb_envoy
     
     # Créer la ligne [R] chez l'antenne qui envoie (le nb du parent reste inchangé ;
     # son Manque est recalculé dynamiquement via la somme des [R] liés)
-    c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id)
-                 VALUES (?, ?, ?, '[R] ' || ?, 0, ?, 1, ?)""",
+    c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id, est_manuel)
+                 VALUES (?, ?, ?, '[R] ' || ?, 0, ?, 1, ?, 1)""",
               (semaine_id, antenne, jour, nom_dps, nb_envoye, dps_parent_id))
     
     conn.commit()
