@@ -125,27 +125,27 @@ def importer_evenements(fichier_path):
         date_deb = dates_week.min().strftime('%Y-%m-%d')
         date_fin = dates_week.max().strftime('%Y-%m-%d')
 
-        c.execute("INSERT OR IGNORE INTO semaines (numero, date_debut, date_fin) VALUES (?, ?, ?)",
+        c.execute("INSERT INTO semaines (numero, date_debut, date_fin) VALUES (%s, %s, %s) ON CONFLICT (numero) DO NOTHING",
                   (int(week_num), date_deb, date_fin))
-        c.execute("SELECT id FROM semaines WHERE numero = ?", (int(week_num),))
+        c.execute("SELECT id FROM semaines WHERE numero = %s", (int(week_num),))
         semaine_id = c.fetchone()[0]
 
         # Sauvegarder les renforts manuels avant écrasement
-        c.execute("DELETE FROM renforts_backup WHERE semaine_num = ?", (int(week_num),))
+        c.execute("DELETE FROM renforts_backup WHERE semaine_num = %s", (int(week_num),))
         c.execute("""
             INSERT INTO renforts_backup (semaine_num, antenne, jour, nom_dps, nb, tl, parent_antenne, parent_jour, parent_nom)
-            SELECT ?, d.antenne, d.jour, d.nom_dps, d.nb, d.tl,
+            SELECT %s, d.antenne, d.jour, d.nom_dps, d.nb, d.tl,
                    p.antenne, p.jour, p.nom_dps
             FROM dps d
             LEFT JOIN dps p ON p.id = d.parent_dps_id
-            WHERE d.semaine_id = ? AND d.est_manuel = 1
+            WHERE d.semaine_id = %s AND d.est_manuel = 1
         """, (int(week_num), semaine_id))
-        c.execute("SELECT COUNT(*) FROM renforts_backup WHERE semaine_num = ?", (int(week_num),))
+        c.execute("SELECT COUNT(*) FROM renforts_backup WHERE semaine_num = %s", (int(week_num),))
         nb_backup = c.fetchone()[0]
         if nb_backup > 0:
             logs.append(f"💾 {nb_backup} renfort(s) manuel(s) sauvegardé(s) — utilisez 'Réinjecter' pour les restaurer")
 
-        c.execute("DELETE FROM dps WHERE semaine_id = ?", (semaine_id,))
+        c.execute("DELETE FROM dps WHERE semaine_id = %s", (semaine_id,))
 
         df_week_parents = df_week[df_week['parent_row'].isna()]
         df_week_renforts = df_week[df_week['parent_row'].notna()]
@@ -162,10 +162,10 @@ def importer_evenements(fichier_path):
                     est_renfort_val = 1
 
                 c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, NULL)""",
+                             VALUES (%s, %s, %s, %s, %s, %s, %s, NULL) RETURNING id""",
                           (semaine_id, row['Antenne'], row['Jour'], nom_final,
                            int(row['Présents_num']), int(row['Requis_num']), est_renfort_val))
-                parent_indices_to_db_id[idx] = c.lastrowid
+                parent_indices_to_db_id[idx] = c.fetchone()[0]
             except Exception as e:
                 logs.append(f"❌ DPS principal {row['Nom_DPS']} : {e}")
 
@@ -181,7 +181,7 @@ def importer_evenements(fichier_path):
                 p_row = row['parent_row']
                 if p_row is not None and not pd.isna(p_row.get('Antenne', None)):
                     c.execute("""SELECT id FROM dps
-                                 WHERE semaine_id=? AND antenne=? AND jour=? AND nom_dps=? AND est_renfort=0""",
+                                 WHERE semaine_id=%s AND antenne=%s AND jour=%s AND nom_dps=%s AND est_renfort=0""",
                               (semaine_id, p_row['Antenne'], p_row.get('Jour'), p_row.get('Nom_DPS')))
                     res = c.fetchone()
                     if res:
@@ -194,7 +194,7 @@ def importer_evenements(fichier_path):
                 nom_final = f"[R] {nom_clean} ({row['H_debut']}-{row['H_fin']})"
 
                 c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id)
-                             VALUES (?, ?, ?, ?, ?, ?, 1, ?)""",
+                             VALUES (%s, %s, %s, %s, %s, %s, 1, %s)""",
                           (semaine_id, row['Antenne'], row['Jour'], nom_final,
                            int(row['Présents_num']), int(row['Requis_num']), parent_db_id))
             except Exception as e:

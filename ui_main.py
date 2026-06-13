@@ -308,7 +308,7 @@ class MainWindow(QMainWindow):
 
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id FROM semaines WHERE numero = ?", (self.current_semaine,))
+        c.execute("SELECT id FROM semaines WHERE numero = %s", (self.current_semaine,))
         res = c.fetchone()
         if not res:
             conn.close()
@@ -316,7 +316,7 @@ class MainWindow(QMainWindow):
         semaine_id = res[0]
 
         c.execute("""SELECT antenne, jour, nom_dps, nb, tl, id, est_renfort, parent_dps_id
-                     FROM dps WHERE semaine_id = ? ORDER BY antenne, jour, est_renfort""", (semaine_id,))
+                     FROM dps WHERE semaine_id = %s ORDER BY antenne, jour, est_renfort""", (semaine_id,))
         rows = c.fetchall()
         conn.close()
 
@@ -454,9 +454,9 @@ class MainWindow(QMainWindow):
         conn = get_conn()
         c = conn.cursor()
         if col_in_day == 1:
-            c.execute("UPDATE dps SET nb = ? WHERE id = ?", (val, dps_id))
+            c.execute("UPDATE dps SET nb = %s WHERE id = %s", (val, dps_id))
         else:
-            c.execute("UPDATE dps SET tl = ? WHERE id = ?", (val, dps_id))
+            c.execute("UPDATE dps SET tl = %s WHERE id = %s", (val, dps_id))
         conn.commit()
         conn.close()
 
@@ -511,7 +511,7 @@ class MainWindow(QMainWindow):
 
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id FROM semaines WHERE numero = ?", (self.current_semaine,))
+        c.execute("SELECT id FROM semaines WHERE numero = %s", (self.current_semaine,))
         res = c.fetchone()
         conn.close()
 
@@ -552,8 +552,8 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             conn = get_conn()
             c = conn.cursor()
-            c.execute("DELETE FROM dps WHERE parent_dps_id = ?", (dps_id,))
-            c.execute("DELETE FROM dps WHERE id = ?", (dps_id,))
+            c.execute("DELETE FROM dps WHERE parent_dps_id = %s", (dps_id,))
+            c.execute("DELETE FROM dps WHERE id = %s", (dps_id,))
             conn.commit()
             conn.close()
             self.charger_vue()
@@ -569,7 +569,7 @@ class MainWindow(QMainWindow):
         conn = get_conn()
         c = conn.cursor()
         try:
-            c.execute("SELECT COUNT(*) FROM renforts_backup WHERE semaine_num = ?", (self.current_semaine,))
+            c.execute("SELECT COUNT(*) FROM renforts_backup WHERE semaine_num = %s", (self.current_semaine,))
             count = c.fetchone()[0]
         except Exception:
             count = 0
@@ -587,7 +587,7 @@ class MainWindow(QMainWindow):
             return
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id FROM semaines WHERE numero = ?", (self.current_semaine,))
+        c.execute("SELECT id FROM semaines WHERE numero = %s", (self.current_semaine,))
         res = c.fetchone()
         if not res:
             conn.close()
@@ -595,7 +595,7 @@ class MainWindow(QMainWindow):
         semaine_id = res[0]
 
         c.execute("""SELECT antenne, jour, nom_dps, nb, tl, parent_antenne, parent_jour, parent_nom
-                     FROM renforts_backup WHERE semaine_num = ?""", (self.current_semaine,))
+                     FROM renforts_backup WHERE semaine_num = %s""", (self.current_semaine,))
         backup = c.fetchall()
 
         if not backup:
@@ -610,7 +610,7 @@ class MainWindow(QMainWindow):
         for antenne, jour, nom_dps, nb, tl, parent_ant, parent_jour, parent_nom in backup:
             # Vérifier si un renfort identique existe déjà (doublon issu du nouvel import)
             c.execute("""SELECT id FROM dps
-                         WHERE semaine_id=? AND antenne=? AND jour=? AND nom_dps=? AND est_renfort=1""",
+                         WHERE semaine_id=%s AND antenne=%s AND jour=%s AND nom_dps=%s AND est_renfort=1""",
                       (semaine_id, antenne, jour, nom_dps))
             if c.fetchone():
                 deja_presents.append(f"{nom_dps}  ({antenne} / {jour})")
@@ -619,7 +619,7 @@ class MainWindow(QMainWindow):
             parent_db_id = None
             if parent_ant and parent_jour and parent_nom:
                 c.execute("""SELECT id FROM dps
-                             WHERE semaine_id=? AND antenne=? AND jour=? AND nom_dps=? AND est_renfort=0""",
+                             WHERE semaine_id=%s AND antenne=%s AND jour=%s AND nom_dps=%s AND est_renfort=0""",
                           (semaine_id, parent_ant, parent_jour, parent_nom))
                 res_p = c.fetchone()
                 if res_p:
@@ -627,14 +627,14 @@ class MainWindow(QMainWindow):
 
             if parent_db_id is not None:
                 c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id, est_manuel)
-                             VALUES (?, ?, ?, ?, ?, ?, 1, ?, 1)""",
+                             VALUES (%s, %s, %s, %s, %s, %s, 1, %s, 1)""",
                           (semaine_id, antenne, jour, nom_dps, nb, tl, parent_db_id))
                 injectes += 1
             else:
                 introuvables.append(f"{nom_dps}  →  parent : {parent_ant} / {parent_jour}")
 
         conn.commit()
-        c.execute("DELETE FROM renforts_backup WHERE semaine_num = ?", (self.current_semaine,))
+        c.execute("DELETE FROM renforts_backup WHERE semaine_num = %s", (self.current_semaine,))
         conn.commit()
         conn.close()
 
@@ -700,10 +700,10 @@ class MainWindow(QMainWindow):
             # Données depuis la DB
             conn = get_conn()
             cur = conn.cursor()
-            cur.execute("SELECT id FROM semaines WHERE numero = ?", (self.current_semaine,))
+            cur.execute("SELECT id FROM semaines WHERE numero = %s", (self.current_semaine,))
             semaine_id = cur.fetchone()[0]
             cur.execute("""SELECT antenne, jour, nom_dps, nb, tl, id, est_renfort, parent_dps_id
-                           FROM dps WHERE semaine_id = ? ORDER BY antenne, jour, est_renfort""", (semaine_id,))
+                           FROM dps WHERE semaine_id = %s ORDER BY antenne, jour, est_renfort""", (semaine_id,))
             db_rows = cur.fetchall()
             conn.close()
 
@@ -884,7 +884,7 @@ class MainWindow(QMainWindow):
 
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id, date_debut, date_fin FROM semaines WHERE numero = ?", (self.current_semaine,))
+        c.execute("SELECT id, date_debut, date_fin FROM semaines WHERE numero = %s", (self.current_semaine,))
         sem = c.fetchone()
         if not sem:
             conn.close()
@@ -893,7 +893,7 @@ class MainWindow(QMainWindow):
         semaine_id, date_debut, date_fin = sem
 
         c.execute("""SELECT antenne, jour, nom_dps, nb, tl, id, est_renfort, parent_dps_id
-                     FROM dps WHERE semaine_id = ? ORDER BY antenne, jour, est_renfort""", (semaine_id,))
+                     FROM dps WHERE semaine_id = %s ORDER BY antenne, jour, est_renfort""", (semaine_id,))
         rows = c.fetchall()
         conn.close()
 

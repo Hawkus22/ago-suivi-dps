@@ -14,15 +14,15 @@ def get_voisins(antenne, rayon=3):
 def evaluer_disponibilite(antenne, jour, semaine_id):
     conn = get_conn()
     c = conn.cursor()
-    c.execute("""SELECT SUM(tl), SUM(nb) FROM dps 
-                 WHERE semaine_id = ? AND antenne = ? AND jour = ? AND est_renfort = 0""", 
+    c.execute("""SELECT SUM(tl), SUM(nb) FROM dps
+                 WHERE semaine_id = %s AND antenne = %s AND jour = %s AND est_renfort = 0""",
               (semaine_id, antenne, jour))
     res = c.fetchone()
     conn.close()
-    
+
     total_tl = res[0] or 0
     total_nb = res[1] or 0
-    
+
     if total_tl == 0: return "Libre (Aucun DPS)", 99
     elif total_nb >= total_tl: return f"Libre (Marge de {total_nb - total_tl} IS)", total_nb - total_tl
     elif total_nb > 0: return f"Partielle (Manque {total_tl - total_nb} IS)", 0
@@ -42,7 +42,6 @@ def suggerer_renforts(antenne_cible, jour, semaine_id, besoin):
     return suggestions
 
 def toutes_disponibilites(antenne_cible, jour, semaine_id):
-    """Retourne la disponibilité de toutes les antennes sauf l'antenne cible."""
     idx_cible = ANTENNES_ORDRE.index(antenne_cible) if antenne_cible in ANTENNES_ORDRE else -1
     result = []
     for antenne in ANTENNES_ORDRE:
@@ -56,15 +55,10 @@ def toutes_disponibilites(antenne_cible, jour, semaine_id):
     return result
 
 def ajouter_renforts(semaine_id, dps_parent_id, antenne, jour, nom_dps, nb_envoye):
-    """Crée une ligne [R] chez l'antenne qui envoie le renfort ET met à jour le DPS principal."""
     conn = get_conn()
     c = conn.cursor()
-    
-    # Créer la ligne [R] chez l'antenne qui envoie (le nb du parent reste inchangé ;
-    # son Manque est recalculé dynamiquement via la somme des [R] liés)
     c.execute("""INSERT INTO dps (semaine_id, antenne, jour, nom_dps, nb, tl, est_renfort, parent_dps_id, est_manuel)
-                 VALUES (?, ?, ?, '[R] ' || ?, 0, ?, 1, ?, 1)""",
+                 VALUES (%s, %s, %s, '[R] ' || %s, 0, %s, 1, %s, 1)""",
               (semaine_id, antenne, jour, nom_dps, nb_envoye, dps_parent_id))
-    
     conn.commit()
     conn.close()

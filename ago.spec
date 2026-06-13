@@ -31,7 +31,9 @@ a = Analysis(
         'pandas._libs.tslibs.timedeltas',
         'openpyxl',
         'openpyxl.cell._writer',
-        'sqlite3',
+        'psycopg2',
+        'psycopg2.extensions',
+        'psycopg2._psycopg',
         'dateutil',
         'dateutil.relativedelta',
     ],
@@ -72,6 +74,6 @@ exe = EXE(
     entitlements_file=None,
     # icon='icon.ico',  # Décommenter avec un fichier .ico Windows valide
     #
-    # Note DB : ago_suivi.db N'EST PAS embarqué.
-    # Il est créé au premier lancement à côté du .exe (database.py gère ce chemin).
+    # Note : ago_suivi.db et ago_config.ini NE SONT PAS embarqués.
+    # ago_config.ini doit être placé à côté du .exe avec l'URL Supabase.
 )

@@ -4,8 +4,11 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Base de données (données runtime, propres à chaque poste)
+# Base de données locale (mode dev SQLite)
 ago_suivi.db
+
+# Configuration locale (contient le mot de passe Supabase — ne jamais commiter)
+ago_config.ini
 
 # Sorties PyInstaller
 build/
