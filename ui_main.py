@@ -118,6 +118,8 @@ class MainWindow(QMainWindow):
 
         # Menu bar
         menubar = self.menuBar()
+        menu_fichier = menubar.addMenu("Fichier")
+        menu_fichier.addAction("📤 Exporter vers Excel AGO", self.exporter_excel)
         menu_aide = menubar.addMenu("❓ Aide")
         menu_aide.addAction("Guide d'utilisation", self.ouvrir_aide)
         menu_aide.addSeparator()
@@ -147,12 +149,12 @@ class MainWindow(QMainWindow):
 
         toolbar.addStretch()
 
-        self.btn_export = QPushButton("📤 2. Exporter vers Excel AGO")
-        self.btn_export.clicked.connect(self.exporter_excel)
-        self.btn_export.setEnabled(False)
-        self.btn_export.setStyleSheet("font-weight: bold; padding: 8px; background-color: #2196F3; color: white;")
-        self.btn_export.setToolTip("Exporter le tableau de suivi de la semaine active vers un fichier Excel.\nLes couleurs et la mise en forme sont conservées.")
-        toolbar.addWidget(self.btn_export)
+        self.btn_synthese = QPushButton("📊 Synthèse de la semaine")
+        self.btn_synthese.clicked.connect(self.synthese_semaine)
+        self.btn_synthese.setEnabled(False)
+        self.btn_synthese.setStyleSheet("font-weight: bold; padding: 8px; background-color: #7B1FA2; color: white;")
+        self.btn_synthese.setToolTip("Afficher un récapitulatif complet de la semaine active.\nPermet de copier pour WhatsApp ou d'imprimer.")
+        toolbar.addWidget(self.btn_synthese)
 
         layout.addLayout(toolbar)
 
@@ -273,10 +275,10 @@ class MainWindow(QMainWindow):
         self.combo_semaine.blockSignals(False)
 
         if self.current_semaine is not None:
-            self.btn_export.setEnabled(True)
+            self.btn_synthese.setEnabled(True)
             self.charger_vue()
         else:
-            self.btn_export.setEnabled(False)
+            self.btn_synthese.setEnabled(False)
             self.table.setRowCount(0)
             self.frozen_table.setRowCount(0)
 
@@ -753,37 +755,265 @@ class MainWindow(QMainWindow):
         layout.addWidget(btn)
         dlg.exec()
 
+    def synthese_semaine(self):
+        if not self.current_semaine:
+            return
+
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute("SELECT id, date_debut, date_fin FROM semaines WHERE numero = ?", (self.current_semaine,))
+        sem = c.fetchone()
+        if not sem:
+            conn.close()
+            QMessageBox.information(self, "Synthèse", "Aucune donnée pour cette semaine.")
+            return
+        semaine_id, date_debut, date_fin = sem
+
+        c.execute("""SELECT antenne, jour, nom_dps, nb, tl, id, est_renfort, parent_dps_id
+                     FROM dps WHERE semaine_id = ? ORDER BY antenne, jour, est_renfort""", (semaine_id,))
+        rows = c.fetchall()
+        conn.close()
+
+        if not rows:
+            QMessageBox.information(self, "Synthèse", "Aucun DPS enregistré pour la semaine %s." % self.current_semaine)
+            return
+
+        # Structures de données
+        renfort_par_parent = {}
+        for r in rows:
+            if r[6] and r[7]:
+                renfort_par_parent[r[7]] = renfort_par_parent.get(r[7], 0) + r[3]
+
+        renforts_de = {}  # parent_id -> [{antenne, nb, tl}]
+        data = {}
+        for r in rows:
+            ant, jour, nom, nb, tl, did, est_r, parent_id = r
+            data.setdefault(ant, {}).setdefault(jour, {'principaux': [], 'renforts': []})
+            entry = {'nom': nom, 'nb': nb, 'tl': tl, 'id': did, 'antenne': ant}
+            if est_r:
+                data[ant][jour]['renforts'].append(entry)
+                if parent_id:
+                    renforts_de.setdefault(parent_id, []).append({'antenne': ant, 'nb': nb, 'tl': tl})
+            else:
+                data[ant][jour]['principaux'].append(entry)
+
+        # Statistiques globales
+        principaux = [r for r in rows if not r[6]]
+        renforts   = [r for r in rows if r[6]]
+        total_tl   = sum(r[4] for r in principaux)
+        total_eng  = sum(r[3] + renfort_par_parent.get(r[5], 0) for r in principaux)
+        total_man  = sum(max(0, r[4] - (r[3] + renfort_par_parent.get(r[5], 0))) for r in principaux)
+        nb_incomplets = sum(1 for r in principaux if r[3] + renfort_par_parent.get(r[5], 0) < r[4])
+
+        def fmt_date(d):
+            try:
+                from datetime import datetime
+                return datetime.strptime(d, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except Exception:
+                return d
+
+        periode = f"Du {fmt_date(date_debut)} au {fmt_date(date_fin)}"
+
+        # ── Génération HTML ──────────────────────────────────────────
+        html_parts = [f"""<style>
+body{{font-family:Arial,sans-serif;font-size:13px;margin:10px}}
+h2{{color:#1E3C72;border-bottom:2px solid #1E3C72;padding-bottom:4px}}
+h3{{color:#2196F3;margin:14px 0 4px}}
+h4{{margin:8px 0 2px;color:#333}}
+table{{border-collapse:collapse;width:100%;margin:4px 0}}
+td,th{{border:1px solid #ddd;padding:4px 8px;font-size:12px}}
+th{{background:#1E3C72;color:#fff}}
+.ok{{background:#C6EFCE}}.ko{{background:#FFC000}}
+.rok{{background:#9DC3E6}}.rko{{background:#FFE699}}
+.bilan{{background:#f0f4ff;border:1px solid #1E3C72;padding:10px;border-radius:6px;margin-top:12px}}
+</style>
+<h2>📊 Synthèse — Semaine {self.current_semaine}</h2>
+<p><i>{periode}</i></p>"""]
+
+        wa_parts = [f"📊 *SYNTHÈSE — SEMAINE {self.current_semaine}*",
+                    f"_{periode}_", ""]
+
+        for antenne in ANTENNES_ORDRE:
+            if antenne not in data:
+                continue
+            jours_ant = {j: v for j, v in data[antenne].items()
+                         if v['principaux'] or v['renforts']}
+            if not jours_ant:
+                continue
+
+            html_parts.append(f"<h3>{antenne}</h3>")
+            wa_parts.append(f"*{antenne}*")
+
+            for jour in JOURS_SEMAINE:
+                if jour not in jours_ant:
+                    continue
+                grp = jours_ant[jour]
+                html_parts.append(f"<h4>📅 {jour}</h4><table><tr><th>DPS</th><th>Engagés</th><th>Σ</th><th>Manque</th><th>Statut</th></tr>")
+                wa_parts.append(f"  📅 {jour}")
+
+                for d in grp['principaux']:
+                    eff = d['nb'] + renfort_par_parent.get(d['id'], 0)
+                    man = max(0, d['tl'] - eff)
+                    css = 'ok' if eff >= d['tl'] else 'ko'
+                    ic  = '✅' if eff >= d['tl'] else '⚠️'
+                    html_parts.append(
+                        f"<tr class='{css}'><td>{d['nom']}</td><td>{eff}</td>"
+                        f"<td>{d['tl']}</td><td>{man}</td><td>{ic}</td></tr>")
+                    wa_parts.append(f"  {ic} {d['nom']}")
+                    wa_parts.append(f"     Engagés : {eff}/{d['tl']}" + (f" · Manque : {man}" if man else " · Complet"))
+
+                    for rf in renforts_de.get(d['id'], []):
+                        ric = '✅' if rf['nb'] >= rf['tl'] else '⏳'
+                        html_parts.append(
+                            f"<tr class='{'rok' if rf['nb']>=rf['tl'] else 'rko'}'>"
+                            f"<td>&nbsp;&nbsp;↳ [R] {rf['antenne']}</td>"
+                            f"<td>{rf['nb']}</td><td>{rf['tl']}</td>"
+                            f"<td>{max(0,rf['tl']-rf['nb'])}</td><td>{ric}</td></tr>")
+                        wa_parts.append(f"     ↳ [R] {rf['antenne']} : {rf['nb']}/{rf['tl']} IS {ric}")
+
+                for r in grp['renforts']:
+                    if not any(r['id'] in [x['id'] for x in grp['principaux']] for _ in [0]):
+                        css = 'rok' if r['nb'] >= r['tl'] else 'rko'
+                        ic  = '✅' if r['nb'] >= r['tl'] else '⏳'
+                        html_parts.append(
+                            f"<tr class='{css}'><td>{r['nom']}</td><td>{r['nb']}</td>"
+                            f"<td>{r['tl']}</td><td>{max(0,r['tl']-r['nb'])}</td><td>{ic}</td></tr>")
+
+                html_parts.append("</table>")
+                wa_parts.append("")
+
+            wa_parts.append("")
+
+        # Bilan
+        html_parts.append(
+            f"<div class='bilan'><b>📈 Bilan global</b><br>"
+            f"DPS principaux : <b>{len(principaux)}</b> &nbsp;|&nbsp; "
+            f"Incomplets : <b>{nb_incomplets}</b> &nbsp;|&nbsp; "
+            f"Renforts créés : <b>{len(renforts)}</b><br>"
+            f"IS requis : <b>{total_tl}</b> &nbsp;|&nbsp; "
+            f"Engagés : <b>{total_eng}</b> &nbsp;|&nbsp; "
+            f"Manquants : <b style='color:{'red' if total_man else 'green'}'>{total_man}</b></div>")
+
+        wa_parts += [
+            "─────────────────────",
+            f"📈 *BILAN SEMAINE {self.current_semaine}*",
+            f"DPS principaux : {len(principaux)} | Incomplets : {nb_incomplets}",
+            f"Renforts créés : {len(renforts)}",
+            f"IS requis : {total_tl} | Engagés : {total_eng} | Manquants : {total_man}",
+        ]
+
+        html_final = "\n".join(html_parts)
+        wa_final   = "\n".join(wa_parts)
+
+        # ── Dialogue ─────────────────────────────────────────────────
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"Synthèse — Semaine {self.current_semaine}")
+        dlg.resize(750, 580)
+        layout = QVBoxLayout(dlg)
+
+        browser = QTextBrowser()
+        browser.setHtml(html_final)
+        layout.addWidget(browser)
+
+        btns = QHBoxLayout()
+
+        btn_wa = QPushButton("📱 Copier pour WhatsApp")
+        btn_wa.setStyleSheet("padding:6px 14px; background:#25D366; color:white; font-weight:bold;")
+        def copier_wa():
+            QApplication.clipboard().setText(wa_final)
+            btn_wa.setText("✅ Copié !")
+        btn_wa.clicked.connect(copier_wa)
+        btns.addWidget(btn_wa)
+
+        btn_print = QPushButton("🖨️ Imprimer")
+        btn_print.setStyleSheet("padding:6px 14px; background:#1E3C72; color:white; font-weight:bold;")
+        def imprimer():
+            try:
+                from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
+                printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+                pd = QPrintDialog(printer, dlg)
+                if pd.exec():
+                    browser.print(printer)
+            except Exception as ex:
+                QMessageBox.warning(dlg, "Impression", f"Impression impossible :\n{ex}")
+        btn_print.clicked.connect(imprimer)
+        btns.addWidget(btn_print)
+
+        btns.addStretch()
+        btn_close = QPushButton("Fermer")
+        btn_close.clicked.connect(dlg.accept)
+        btns.addWidget(btn_close)
+
+        layout.addLayout(btns)
+        dlg.exec()
+
     def ouvrir_apropos(self):
         import os
         from PyQt6.QtGui import QPixmap
         dlg = QDialog(self)
-        dlg.setWindowTitle("À propos")
-        dlg.setFixedWidth(340)
-        layout = QVBoxLayout(dlg)
-        layout.setSpacing(10)
+        dlg.setWindowTitle("À propos — AGO Suivi DPS")
+        dlg.setFixedSize(500, 240)
+        main_layout = QVBoxLayout(dlg)
 
+        body = QHBoxLayout()
+        body.setSpacing(18)
+        body.setContentsMargins(10, 10, 10, 0)
+
+        # Logo gauche
         logo_path = resource_path("Hawkus Corp 1.png")
         if os.path.exists(logo_path):
             lbl_logo = QLabel()
-            pixmap = QPixmap(logo_path).scaledToWidth(180, Qt.TransformationMode.SmoothTransformation)
+            pixmap = QPixmap(logo_path).scaledToWidth(145, Qt.TransformationMode.SmoothTransformation)
             lbl_logo.setPixmap(pixmap)
-            lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(lbl_logo)
+            lbl_logo.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+            lbl_logo.setFixedWidth(150)
+            body.addWidget(lbl_logo)
 
-        lbl = QLabel(
-            f"<h3 style='text-align:center'>{APP_NAME}</h3>"
-            f"<p style='text-align:center'>Version <b>{VERSION}</b> &nbsp;·&nbsp; {BUILD}</p>"
-            "<p style='text-align:center'>Gestion des Dispositifs Prévisionnels de Secours<br>"
-            "pour les <b>Côtes-d'Armor (22)</b>.</p>"
-            "<hr>"
-            "<p style='text-align:center; color:#555; font-size:11px;'>"
-            f"Python 3 · PyQt6 · SQLite · pandas<br><b>{AUTHOR}</b></p>"
+        # Séparateur vertical
+        sep = QWidget()
+        sep.setFixedWidth(1)
+        sep.setStyleSheet("background:#ddd;")
+        body.addWidget(sep)
+
+        # Infos droite
+        right = QVBoxLayout()
+        right.setSpacing(4)
+
+        lbl_app = QLabel(f"<b style='font-size:13px;color:#1E3C72'>{APP_NAME}</b>")
+        lbl_ver = QLabel(f"Version <b>{VERSION}</b> &nbsp;·&nbsp; {BUILD}")
+        lbl_ver.setStyleSheet("color:#555; font-size:11px;")
+
+        sep2 = QWidget(); sep2.setFixedHeight(1); sep2.setStyleSheet("background:#ddd;")
+
+        lbl_dev = QLabel(
+            "<b>Développé par</b><br>"
+            "Vachon Marc-Olivier<br>"
+            "<br>"
+            "© 2026 Hawkus Corp<br>"
+            "<i>Tous droits réservés</i><br>"
+            "<br>"
+            "<b>Mis à disposition à titre d'essai</b><br>"
+            "pour l'Antenne de Lannion<br>"
+            "<span style='color:#888'>(22 LNP — Côtes-d'Armor)</span>"
         )
-        lbl.setWordWrap(True)
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(lbl)
+        lbl_dev.setWordWrap(True)
+        lbl_dev.setStyleSheet("font-size: 11px;")
+
+        sep3 = QWidget(); sep3.setFixedHeight(1); sep3.setStyleSheet("background:#ddd;")
+        lbl_tech = QLabel("<span style='color:#aaa;font-size:10px'>Python 3 · PyQt6 · SQLite · pandas</span>")
+
+        right.addWidget(lbl_app)
+        right.addWidget(lbl_ver)
+        right.addWidget(sep2)
+        right.addWidget(lbl_dev)
+        right.addStretch()
+        right.addWidget(sep3)
+        right.addWidget(lbl_tech)
+
+        body.addLayout(right)
+        main_layout.addLayout(body)
 
         btn = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         btn.rejected.connect(dlg.reject)
-        layout.addWidget(btn)
+        main_layout.addWidget(btn)
         dlg.exec()
