@@ -789,6 +789,18 @@ class MainWindow(QMainWindow):
 
 <h2>AGO — Suivi Automatisé des DPS</h2>
 
+<h3>0. Données partagées entre postes</h3>
+<ul>
+  <li>Les données sont <b>hébergées dans le cloud</b> (Supabase) et communes
+      à tous les postes de l'antenne.</li>
+  <li>Chaque sauvegarde (import, saisie, renfort) est immédiatement visible
+      depuis n'importe quel poste connecté.</li>
+  <li>Une <b>connexion internet</b> est nécessaire. En cas de perte de connexion,
+      l'application affichera une erreur au prochain accès.</li>
+  <li>Pour voir les modifications faites par un collègue, changez de semaine
+      et revenez, ou relancez l'application.</li>
+</ul>
+
 <h3>1. Importer un fichier</h3>
 <ul>
   <li>Cliquez sur <b>📥 1. Importer Export Portail (.xlsx)</b>.</li>
@@ -1123,7 +1135,7 @@ th{{background:#1E3C72;color:#fff}}
         lbl_dev.setStyleSheet("font-size: 11px;")
 
         sep3 = QWidget(); sep3.setFixedHeight(1); sep3.setStyleSheet("background:#ddd;")
-        lbl_tech = QLabel("<span style='color:#aaa;font-size:10px'>Python 3 · PyQt6 · SQLite · pandas</span>")
+        lbl_tech = QLabel("<span style='color:#aaa;font-size:10px'>Python 3 · PyQt6 · PostgreSQL (Supabase) · pandas</span>")
 
         right.addWidget(lbl_app)
         right.addWidget(lbl_ver)

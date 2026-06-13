@@ -34,6 +34,8 @@ a = Analysis(
         'psycopg2',
         'psycopg2.extensions',
         'psycopg2._psycopg',
+        'psycopg2.extras',
+        'configparser',
         'dateutil',
         'dateutil.relativedelta',
     ],
