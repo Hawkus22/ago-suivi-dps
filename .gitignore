@@ -1,0 +1,28 @@
+# Environnement Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Base de données (données runtime, propres à chaque poste)
+ago_suivi.db
+
+# Sorties PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Fichiers de données métier (imports portail / exports générés)
+evenements*.xlsx
+AGO-Suivi-S*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user

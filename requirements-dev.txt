@@ -1,0 +1,2 @@
+# Dépendances de développement (compilation uniquement)
+pyinstaller>=6.0.0
