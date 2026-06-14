@@ -22,8 +22,23 @@ if ('serviceWorker' in navigator) {
 
 initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Écoute les changements de session (connexion / déconnexion)
+// Écoute les changements de session (connexion / déconnexion / recovery)
 getSupabase().auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    // Lien "mot de passe oublié" cliqué → demander le nouveau mot de passe
+    showSetPassword();
+    return;
+  }
+  if (event === 'SIGNED_IN' && session) {
+    // Invitation magic link → demander de définir un mot de passe si pas encore fait
+    const isInvite = window.location.hash.includes('type=invite');
+    if (isInvite) {
+      showSetPassword(session.user.email);
+      return;
+    }
+    showApp(session.user.email);
+    return;
+  }
   if (session) {
     showApp(session.user.email);
   } else {
@@ -67,6 +82,47 @@ document.getElementById('btn-login').onclick = async () => {
       : err.message);
     btn.disabled = false;
     btn.textContent = 'Se connecter';
+  }
+};
+
+// ─── Définir / changer mot de passe ───────────────────────────────────────
+
+function showSetPassword(email = '') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('set-password-screen').style.display = 'flex';
+  if (email) document.getElementById('set-pwd-email').textContent = email;
+}
+
+document.getElementById('btn-set-pwd').onclick = async () => {
+  const pwd1 = document.getElementById('set-pwd-1').value;
+  const pwd2 = document.getElementById('set-pwd-2').value;
+  const err  = document.getElementById('set-pwd-error');
+
+  if (pwd1.length < 8) {
+    err.textContent = 'Le mot de passe doit faire au moins 8 caractères.';
+    err.style.display = 'block'; return;
+  }
+  if (pwd1 !== pwd2) {
+    err.textContent = 'Les mots de passe ne correspondent pas.';
+    err.style.display = 'block'; return;
+  }
+
+  const btn = document.getElementById('btn-set-pwd');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+  try {
+    const { error } = await getSupabase().auth.updateUser({ password: pwd1 });
+    if (error) throw error;
+    // Nettoyer le hash de l'URL (type=invite / type=recovery)
+    history.replaceState(null, '', window.location.pathname);
+    const { data: { session } } = await getSupabase().auth.getSession();
+    document.getElementById('set-password-screen').style.display = 'none';
+    showApp(session.user.email);
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Enregistrer';
   }
 };
 

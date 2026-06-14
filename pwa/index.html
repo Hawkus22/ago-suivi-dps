@@ -36,6 +36,27 @@
     </div>
   </div>
 
+  <!-- ── Écran définir mot de passe (invitation / recovery) ───────── -->
+  <div id="set-password-screen" style="display:none">
+    <div class="cfg-box">
+      <div class="login-logo">PHARE</div>
+      <p class="login-tagline">Définir votre mot de passe</p>
+      <p id="set-pwd-email" class="set-pwd-email"></p>
+      <div class="fg">
+        <label>Nouveau mot de passe</label>
+        <input type="password" id="set-pwd-1" placeholder="8 caractères minimum"
+               autocomplete="new-password">
+      </div>
+      <div class="fg">
+        <label>Confirmer le mot de passe</label>
+        <input type="password" id="set-pwd-2" placeholder="Répétez le mot de passe"
+               autocomplete="new-password">
+      </div>
+      <p id="set-pwd-error" class="login-error" style="display:none"></p>
+      <button class="btn-prim" id="btn-set-pwd" style="margin-top:8px">Enregistrer</button>
+    </div>
+  </div>
+
   <!-- ── Application principale ─────────────────────────────────────── -->
   <div id="app" style="display:none">
 
