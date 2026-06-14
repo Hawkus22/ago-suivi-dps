@@ -32,20 +32,42 @@ def find_parent(row, df):
     ]
     if len(candidates) == 0:
         return None
-    elif len(candidates) == 1:
+    if len(candidates) == 1:
         return candidates.iloc[0]
-    else:
-        def get_words(text):
-            return set(re.findall(r'\w+', str(text).lower()))
-        r_words = get_words(row['Activité'])
-        best_candidate = None
-        max_overlap = -1
-        for idx, cand in candidates.iterrows():
-            overlap = len(r_words.intersection(get_words(cand['Activité'])))
-            if overlap > max_overlap:
-                max_overlap = overlap
-                best_candidate = cand
-        return best_candidate
+
+    # Plusieurs candidats : affiner par adresse puis par lieu
+    def norm(val):
+        return str(val).strip().lower() if val is not None and not (isinstance(val, float) and pd.isna(val)) else ''
+
+    adresse_r = norm(row.get('Adresse'))
+    lieu_r    = norm(row.get('Lieu'))
+
+    if adresse_r:
+        addr_match = candidates[candidates['Adresse'].apply(norm) == adresse_r]
+        if len(addr_match) == 1:
+            return addr_match.iloc[0]
+        if len(addr_match) > 1:
+            candidates = addr_match
+
+    if lieu_r and len(candidates) > 1:
+        lieu_match = candidates[candidates['Lieu'].apply(norm) == lieu_r]
+        if len(lieu_match) >= 1:
+            candidates = lieu_match
+        if len(candidates) == 1:
+            return candidates.iloc[0]
+
+    # Dernier recours : similarité du nom d'activité
+    def get_words(text):
+        return set(re.findall(r'\w+', str(text).lower()))
+    r_words = get_words(row['Activité'])
+    best_candidate = None
+    max_overlap = -1
+    for idx, cand in candidates.iterrows():
+        overlap = len(r_words.intersection(get_words(cand['Activité'])))
+        if overlap > max_overlap:
+            max_overlap = overlap
+            best_candidate = cand
+    return best_candidate
 
 def format_heure(h):
     if pd.isna(h): return "??"
