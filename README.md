@@ -6,7 +6,7 @@
 
 ## Contexte
 
-Les bénévoles de la Croix-Rouge française du département **Côtes-d'Armor (22)** assurent des Dispositifs Prévisionnels de Secours (DPS) tout au long de l'année — événements sportifs, culturels, rassemblements publics. Chaque DPS nécessite un nombre défini d'Intervenants Secouristes (IS).
+Les bénévoles de la Protection Civile du département **Côtes-d'Armor (22)** assurent des Dispositifs Prévisionnels de Secours (DPS) tout au long de l'année — événements sportifs, culturels, rassemblements publics. Chaque DPS nécessite un nombre défini d'Intervenants Secouristes (IS).
 
 Le portail AGO recense l'ensemble des événements du département et indique pour chaque DPS le nombre d'IS requis et le nombre d'IS déjà engagés. Lorsqu'un DPS est **incomplet** (engagés < requis), il faut trouver des renforts auprès des autres antennes.
 
