@@ -46,10 +46,17 @@ def find_parent(row, df):
         if len(candidates) == 1:
             return candidates.iloc[0]
 
-    # Dernier recours : similarité du nom d'activité
+    # Correspondance par nom : "Renfort [P] XXX" → strip préfixe → chercher parent "XXX" / "[P] XXX"
+    nom_clean = re.sub(r'(?i)^renfort\s+', '', row['Activité'])
+    nom_clean = re.sub(r'(?i)^\[P\]\s+', '', nom_clean).strip()
+    nom_match = candidates[candidates['Activité'].str.strip() == nom_clean]
+    if len(nom_match) >= 1:
+        return nom_match.iloc[0]
+
+    # Dernier recours : similarité des mots (sur le nom nettoyé)
     def get_words(text):
         return set(re.findall(r'\w+', str(text).lower()))
-    r_words = get_words(row['Activité'])
+    r_words = get_words(nom_clean)
     best_candidate = None
     max_overlap = -1
     for idx, cand in candidates.iterrows():
