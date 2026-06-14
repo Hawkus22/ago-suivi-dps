@@ -384,13 +384,20 @@ class MainWindow(QMainWindow):
             if r[6] and r[7]:  # est_renfort et parent_dps_id non nuls
                 renfort_par_parent[r[7]] = renfort_par_parent.get(r[7], 0) + r[3]
 
+        # Lookup id DPS principal → (effective_nb, tl) pour corriger le Manque des renforts
+        principal_par_id = {}
+        for r in rows:
+            if not r[6]:  # est_renfort = 0
+                eff = r[3] + renfort_par_parent.get(r[5], 0)
+                principal_par_id[r[5]] = (eff, r[4])
+
         # Grouper par (antenne, jour)
         data = {}
         for r in rows:
             key = (r[0], r[1])
             if key not in data:
                 data[key] = {"principaux": [], "renforts": []}
-            entry = {"nom": r[2], "nb": r[3], "tl": r[4], "id": r[5], "est_renfort": r[6]}
+            entry = {"nom": r[2], "nb": r[3], "tl": r[4], "id": r[5], "est_renfort": r[6], "parent_id": r[7]}
             if r[6]:
                 data[key]["renforts"].append(entry)
             else:
@@ -465,9 +472,18 @@ class MainWindow(QMainWindow):
                         self.table.setItem(row_index, col_offset, nom_item)
 
                         self.table.setItem(row_index, col_offset + 1, QTableWidgetItem(str(r["nb"])))
-                        self.table.setItem(row_index, col_offset + 2, QTableWidgetItem(str(r["tl"] - r["nb"])))
+
+                        parent_info = principal_par_id.get(r.get("parent_id"))
+                        if parent_info:
+                            p_eff, p_tl = parent_info
+                            manque = max(0, p_tl - p_eff)
+                            self._colorer_cellule(row_index, col_offset, p_eff, p_tl, est_renfort=True)
+                        else:
+                            manque = max(0, r["tl"] - r["nb"])
+                            self._colorer_cellule(row_index, col_offset, r["nb"], r["tl"], est_renfort=True)
+
+                        self.table.setItem(row_index, col_offset + 2, QTableWidgetItem(str(manque)))
                         self.table.setItem(row_index, col_offset + 3, QTableWidgetItem(str(r["tl"])))
-                        self._colorer_cellule(row_index, col_offset, r["nb"], r["tl"], est_renfort=True)
 
                 row_index += 1
 
@@ -770,12 +786,18 @@ class MainWindow(QMainWindow):
                 if r[6] and r[7]:
                     renfort_par_parent[r[7]] = renfort_par_parent.get(r[7], 0) + r[3]
 
+            principal_par_id = {}
+            for r in db_rows:
+                if not r[6]:
+                    eff = r[3] + renfort_par_parent.get(r[5], 0)
+                    principal_par_id[r[5]] = (eff, r[4])
+
             data = {}
             for r in db_rows:
                 key = (r[0], r[1])
                 if key not in data:
                     data[key] = []
-                data[key].append({"nom": r[2], "nb": r[3], "tl": r[4], "id": r[5], "est_renfort": r[6]})
+                data[key].append({"nom": r[2], "nb": r[3], "tl": r[4], "id": r[5], "est_renfort": r[6], "parent_id": r[7]})
 
             row_idx = 3
             for antenne in ANTENNES_ORDRE:
@@ -793,19 +815,23 @@ class MainWindow(QMainWindow):
                             d = data[key][ligne_idx]
                             if d["est_renfort"]:
                                 effective_nb = d["nb"]
+                                parent_info = principal_par_id.get(d.get("parent_id"))
+                                if parent_info:
+                                    p_eff, p_tl = parent_info
+                                    manque = max(0, p_tl - p_eff)
+                                    color = '9DC3E6' if p_eff >= p_tl else 'FFE699'
+                                else:
+                                    manque = max(0, d["tl"] - effective_nb)
+                                    color = '9DC3E6' if effective_nb >= d["tl"] else 'FFE699'
                             else:
                                 effective_nb = d["nb"] + renfort_par_parent.get(d["id"], 0)
-                            manque = max(0, d["tl"] - effective_nb)
+                                manque = max(0, d["tl"] - effective_nb)
+                                color = 'FFC000' if effective_nb < d["tl"] else 'C6EFCE'
 
                             ws.cell(row=row_idx, column=col_offset, value=d["nom"])
                             ws.cell(row=row_idx, column=col_offset + 1, value=effective_nb)
                             ws.cell(row=row_idx, column=col_offset + 2, value=manque)
                             ws.cell(row=row_idx, column=col_offset + 3, value=d["tl"])
-
-                            if d["est_renfort"]:
-                                color = 'FFE699' if effective_nb < d["tl"] else '9DC3E6'
-                            else:
-                                color = 'FFC000' if effective_nb < d["tl"] else 'C6EFCE'
                             for col in range(col_offset, col_offset + 4):
                                 ws.cell(row=row_idx, column=col).fill = PatternFill(
                                     start_color=color, end_color=color, fill_type='solid')
@@ -1057,13 +1083,14 @@ th{{background:#1E3C72;color:#fff}}
                     wa_parts.append(f"     Engagés : {eff}/{d['tl']}" + (f" · Manque : {man}" if man else " · Complet"))
 
                     for rf in renforts_de.get(d['id'], []):
-                        ric = '✅' if rf['nb'] >= rf['tl'] else '⏳'
+                        parent_ok = eff >= d['tl']
+                        ric = '✅' if parent_ok else '⏳'
                         html_parts.append(
-                            f"<tr class='{'rok' if rf['nb']>=rf['tl'] else 'rko'}'>"
+                            f"<tr class='{'rok' if parent_ok else 'rko'}'>"
                             f"<td>&nbsp;&nbsp;↳ [R] {rf['antenne']}</td>"
-                            f"<td>{rf['nb']}</td><td>{rf['tl']}</td>"
-                            f"<td>{max(0,rf['tl']-rf['nb'])}</td><td>{ric}</td></tr>")
-                        wa_parts.append(f"     ↳ [R] {rf['antenne']} : {rf['nb']}/{rf['tl']} IS {ric}")
+                            f"<td>{rf['nb']}</td><td>{d['tl']}</td>"
+                            f"<td>{man}</td><td>{ric}</td></tr>")
+                        wa_parts.append(f"     ↳ [R] {rf['antenne']} : {rf['nb']}/{d['tl']} IS {ric}")
 
                 for r in grp['renforts']:
                     if not any(r['id'] in [x['id'] for x in grp['principaux']] for _ in [0]):
