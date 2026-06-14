@@ -35,6 +35,11 @@ class TwoLineHeaderView(QHeaderView):
         self.setSectionsClickable(False)
         self.setSectionsMovable(False)
         self.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self._dates = []
+
+    def set_dates(self, dates):
+        self._dates = dates
+        self.viewport().update()
 
     def sizeHint(self):
         return QSize(super().sizeHint().width(), self.HEADER_HEIGHT)
@@ -98,7 +103,11 @@ class TwoLineHeaderView(QHeaderView):
             nb_visible = min(4, self.count() - col_start)
             w = sum(self.sectionSize(col_start + i) for i in range(nb_visible))
             painter.setFont(QFont("Arial", 11, QFont.Weight.Bold))
-            painter.drawText(QRect(x, 0, w, hl), Qt.AlignmentFlag.AlignCenter, jour)
+            if self._dates and jour_idx < len(self._dates):
+                label = f"{jour} {self._dates[jour_idx].day}"
+            else:
+                label = jour
+            painter.drawText(QRect(x, 0, w, hl), Qt.AlignmentFlag.AlignCenter, label)
 
         painter.end()
 
@@ -349,6 +358,7 @@ class MainWindow(QMainWindow):
             self.btn_synthese.setEnabled(False)
             self.table.setRowCount(0)
             self.frozen_table.setRowCount(0)
+            self.table.horizontalHeader().set_dates([])
         self._refresh_btn_reinjecter()
 
     def on_semaine_changed(self, index):
@@ -364,14 +374,23 @@ class MainWindow(QMainWindow):
         if not self.current_semaine:
             return
 
+        import datetime as _dt
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id FROM semaines WHERE numero = %s", (self.current_semaine,))
+        c.execute("SELECT id, date_debut FROM semaines WHERE numero = %s", (self.current_semaine,))
         res = c.fetchone()
         if not res:
             conn.close()
             return
-        semaine_id = res[0]
+        semaine_id, date_debut_raw = res
+
+        # Calcul des 7 dates à partir du lundi de la semaine
+        week_dates = []
+        if date_debut_raw:
+            d = date_debut_raw if isinstance(date_debut_raw, _dt.date) else _dt.date.fromisoformat(str(date_debut_raw))
+            monday = d - _dt.timedelta(days=d.weekday())
+            week_dates = [monday + _dt.timedelta(days=i) for i in range(7)]
+        self.table.horizontalHeader().set_dates(week_dates)
 
         c.execute("""SELECT antenne, jour, nom_dps, nb, tl, id, est_renfort, parent_dps_id
                      FROM dps WHERE semaine_id = %s ORDER BY antenne, jour, est_renfort""", (semaine_id,))
