@@ -472,9 +472,8 @@ class MainWindow(QMainWindow):
                         nom_item.setData(_DPS_ID_ROLE, d["id"])
                         self.table.setItem(row_index, col_offset, nom_item)
 
-                        # Engagés : propres + renforts entre parenthèses si applicable
-                        eng_text = f"{d['nb']}(+{renforts_nb})" if renforts_nb > 0 else str(effective_nb)
-                        eng_item = QTableWidgetItem(eng_text)
+                        # Engagés : IS propres du DPS (Manque et couleur basés sur l'agrégé avec renforts)
+                        eng_item = QTableWidgetItem(str(d["nb"]))
                         eng_item.setFlags(eng_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                         self.table.setItem(row_index, col_offset + 1, eng_item)
 
