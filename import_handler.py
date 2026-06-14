@@ -98,11 +98,29 @@ def importer_evenements(fichier_path):
         parents.append(find_parent(row, df))
     df['parent_row'] = parents
 
-    # Grouper par numéro d'activité pour détecter les groupes incomplets
-    df['group_id'] = df['num_activite'].where(df['num_activite'].notna(), other=pd.Series(range(len(df)), index=df.index).astype(str))
-    df['Is_Incomplete_Row'] = df['Présents_num'] < df['Requis_num']
-    incomplete_groups = df.groupby('group_id')['Is_Incomplete_Row'].transform('any')
-    df['Is_In_Incomplete_Group'] = incomplete_groups
+    # Détection des groupes incomplets : somme IS (parent + tous ses renforts) vs Requis du parent
+    # Le portail AGO attribue un Numero unique à chaque ligne, donc on ne peut pas grouper par
+    # num_activite. On utilise les relations parent-enfant déjà calculées par find_parent().
+    parent_totals = {}  # parent_idx -> total Présents (parent propre + tous ses renforts)
+    for idx, row in df.iterrows():
+        parent = row['parent_row']
+        if parent is None:
+            parent_totals[idx] = parent_totals.get(idx, 0) + row['Présents_num']
+        else:
+            p_idx = parent.name
+            parent_totals[p_idx] = parent_totals.get(p_idx, 0) + row['Présents_num']
+
+    parent_requis_map = {idx: row['Requis_num'] for idx, row in df.iterrows()
+                         if row['parent_row'] is None}
+
+    def in_incomplete_group(row):
+        parent = row['parent_row']
+        p_idx = row.name if parent is None else parent.name
+        total = parent_totals.get(p_idx, 0)
+        requis = parent_requis_map.get(p_idx, row['Requis_num'])
+        return total < requis
+
+    df['Is_In_Incomplete_Group'] = df.apply(in_incomplete_group, axis=1)
 
     df_to_import = df[df['Is_In_Incomplete_Group']].copy()
 
