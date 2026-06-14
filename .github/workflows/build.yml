@@ -41,9 +41,13 @@ jobs:
           name: ${{ matrix.nom }}
           path: dist/PHARE-v*.exe
 
+      - name: Zipper le .app macOS (préserve les permissions Unix)
+        if: runner.os == 'macOS'
+        run: cd dist && ditto -c -k --keepParent PHARE-v*.app PHARE-macOS.zip
+
       - name: Uploader l'exécutable macOS
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.nom }}
-          path: dist/PHARE-v*
+          path: dist/PHARE-macOS.zip

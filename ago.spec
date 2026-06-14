@@ -76,3 +76,21 @@ exe = EXE(
     # Note : ago_config.ini N'EST PAS embarqué.
     # Il doit être placé à côté de l'exécutable avec l'URL Supabase.
 )
+
+# ── Bundle macOS (.app) ────────────────────────────────────────────────────
+# Sur macOS, PyInstaller wraps l'exe dans un vrai .app reconnu par le Finder.
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        exe,
+        name=f'PHARE-v{VERSION}.app',
+        icon=None,
+        bundle_identifier='fr.hawkuscorp.phare',
+        info_plist={
+            'CFBundleDisplayName': 'PHARE',
+            'CFBundleName': 'PHARE',
+            'CFBundleVersion': VERSION,
+            'CFBundleShortVersionString': VERSION,
+            'NSHighResolutionCapable': True,
+            'NSPrincipalClass': 'NSApplication',
+        },
+    )
