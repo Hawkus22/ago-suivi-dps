@@ -4,6 +4,26 @@ export function initSupabase(url, key) {
   _sb = window.supabase.createClient(url, key);
 }
 
+export function getSupabase() { return _sb; }
+
+// ─── Auth ──────────────────────────────────────────────────────────────────
+
+export async function signIn(email, password) {
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+}
+
+export async function signOut() {
+  const { error } = await _sb.auth.signOut();
+  if (error) throw error;
+}
+
+export async function getSession() {
+  const { data: { session } } = await _sb.auth.getSession();
+  return session;
+}
+
 // ─── Semaines ──────────────────────────────────────────────────────────────
 
 export async function getSemaines() {

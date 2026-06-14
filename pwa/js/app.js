@@ -1,5 +1,6 @@
-import { ANTENNES_ORDRE, JOURS_SEMAINE, JOURS_COURT, COLORS } from './config.js';
-import { initSupabase, getSemaines, createSemaine, getDPS, updateDPS, insertDPS, deleteDPS } from './db.js';
+import { ANTENNES_ORDRE, JOURS_SEMAINE, JOURS_COURT, COLORS, SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { initSupabase, getSupabase, signIn, signOut, getSession,
+         getSemaines, createSemaine, getDPS, updateDPS, insertDPS, deleteDPS } from './db.js';
 import { suggererRenforts, toutesDisponibilites } from './renfort.js';
 import { genererSynthese } from './synthese.js';
 
@@ -19,42 +20,65 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
-const url = localStorage.getItem('phare_url');
-const key = localStorage.getItem('phare_key');
-if (url && key) {
-  startApp(url, key);
-} else {
-  showConfig();
-}
+initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ─── Config ────────────────────────────────────────────────────────────────
+// Écoute les changements de session (connexion / déconnexion)
+getSupabase().auth.onAuthStateChange((event, session) => {
+  if (session) {
+    showApp(session.user.email);
+  } else {
+    showLogin();
+  }
+});
 
-function showConfig() {
-  document.getElementById('config-screen').style.display = 'flex';
+// Vérification de session existante au démarrage
+(async () => {
+  const session = await getSession();
+  if (session) {
+    showApp(session.user.email);
+  } else {
+    showLogin();
+  }
+})();
+
+// ─── Login ─────────────────────────────────────────────────────────────────
+
+function showLogin(errMsg = '') {
+  document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  const err = document.getElementById('login-error');
+  err.textContent = errMsg;
+  err.style.display = errMsg ? 'block' : 'none';
 }
 
-document.getElementById('btn-save-config').onclick = async () => {
-  const u = document.getElementById('input-url').value.trim();
-  const k = document.getElementById('input-key').value.trim();
-  if (!u || !k) { alert('URL et clé anon requis.'); return; }
-  localStorage.setItem('phare_url', u);
-  localStorage.setItem('phare_key', k);
-  await startApp(u, k);
+document.getElementById('btn-login').onclick = async () => {
+  const email = document.getElementById('login-email').value.trim();
+  const pwd   = document.getElementById('login-pwd').value;
+  if (!email || !pwd) { showLogin('Email et mot de passe requis.'); return; }
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  btn.textContent = 'Connexion…';
+  try {
+    await signIn(email, pwd);
+    // onAuthStateChange prend le relais
+  } catch (err) {
+    showLogin(err.message === 'Invalid login credentials'
+      ? 'Email ou mot de passe incorrect.'
+      : err.message);
+    btn.disabled = false;
+    btn.textContent = 'Se connecter';
+  }
 };
 
-async function startApp(u, k) {
-  try {
-    initSupabase(u, k);
-    document.getElementById('config-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    renderDayTabs();
-    bindHeaderActions();
-    await loadSemaines();
-  } catch (err) {
-    alert('Erreur de connexion : ' + err.message);
-    showConfig();
-  }
+// ─── App démarrée ──────────────────────────────────────────────────────────
+
+async function showApp(userEmail) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('user-email').textContent = userEmail;
+  renderDayTabs();
+  bindHeaderActions();
+  await loadSemaines();
 }
 
 // ─── Semaines ──────────────────────────────────────────────────────────────
@@ -128,10 +152,9 @@ function bindHeaderActions() {
   document.getElementById('btn-new-week').onclick = openNewWeekModal;
   document.getElementById('btn-refresh').onclick  = loadDPS;
   document.getElementById('btn-synthese').onclick = openSyntheseModal;
-  document.getElementById('btn-settings').onclick = () => {
-    document.getElementById('input-url').value = localStorage.getItem('phare_url') || '';
-    document.getElementById('input-key').value = localStorage.getItem('phare_key') || '';
-    showConfig();
+  document.getElementById('btn-logout').onclick = async () => {
+    if (!confirm('Se déconnecter ?')) return;
+    await signOut();
   };
 }
 

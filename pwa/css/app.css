@@ -35,11 +35,41 @@ body {
   border-radius: var(--radius);
   padding: 28px 24px;
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
 }
 
-.cfg-box h2 { color: var(--blue); margin-bottom: 6px; }
-.cfg-box p  { color: #666; font-size: 13px; margin-bottom: 18px; }
+.login-logo {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--blue);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.login-tagline {
+  color: #888;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.login-error {
+  background: #fdecea;
+  color: #c0392b;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.user-email {
+  font-size: 11px;
+  color: rgba(255,255,255,.65);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── App shell ─────────────────────────────────────────────────────────── */
 

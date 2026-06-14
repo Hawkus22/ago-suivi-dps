@@ -1,3 +1,8 @@
+// ── Connexion Supabase ─────────────────────────────────────────────────────
+// Remplacer ces deux valeurs : Supabase Dashboard → Settings → API
+export const SUPABASE_URL      = 'https://XXXX.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9_REMPLACER';
+
 export const ANTENNES_ORDRE = [
   "LNP (Lannion)", "PDG (Guingamp)", "PPL (Paimpol)", "STB (Saint Brieuc)",
   "PLR (Plérin)", "LPP (Lamballe)", "BRC (Broons)", "PDN (Dinan)",
