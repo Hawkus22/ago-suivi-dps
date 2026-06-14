@@ -12,7 +12,7 @@ jobs:
         include:
           - os: windows-latest
             nom: AGO-Windows
-          - os: macos-13        # Intel x86_64 — tourne aussi sur Apple Silicon via Rosetta 2
+          - os: macos-latest    # Apple Silicon (M1/M2/M3)
             nom: AGO-MacOS
 
     runs-on: ${{ matrix.os }}
