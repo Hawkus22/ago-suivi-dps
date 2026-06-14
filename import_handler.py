@@ -13,17 +13,7 @@ def find_parent(row, df):
     if row['Renfort'] != 'renfort':
         return None
 
-    # Liaison primaire : même numéro d'activité (colonne A)
-    num = row.get('num_activite')
-    if num is not None and not pd.isna(num):
-        candidates = df[
-            (df['num_activite'] == num) &
-            (df['Renfort'] != 'renfort')
-        ]
-        if len(candidates) > 0:
-            return candidates.iloc[0]
-
-    # Fallback : correspondance date + heures
+    # Correspondance date + heures
     candidates = df[
         (df['Début'] == row['Début']) &
         (df['Heure début'] == row['Heure début']) &
@@ -91,9 +81,6 @@ def importer_evenements(fichier_path):
     logs.append(f"📂 Fichier : {nom_fichier}")
     logs.append(f"📋 {len(df)} événements lus")
 
-    # Numéro d'activité = colonne A (unique par ligne — pas partagé entre un DPS et ses renforts)
-    df['num_activite'] = df.iloc[:, 0]
-
     df['Organisateur'] = df['Organisateur'].astype(str).str.strip()
     df['Antenne'] = df['Organisateur'].map(MAPPING_ANTENNES)
 
@@ -121,8 +108,7 @@ def importer_evenements(fichier_path):
     df['parent_row'] = parents
 
     # Détection des groupes incomplets : somme IS (parent + tous ses renforts) vs Requis du parent
-    # Le portail AGO attribue un Numero unique à chaque ligne, donc on ne peut pas grouper par
-    # num_activite. On utilise les relations parent-enfant déjà calculées par find_parent().
+    # On utilise les relations parent-enfant détectées par find_parent() (date + heure + adresse/lieu).
     parent_totals = {}  # parent_idx -> total Présents (parent propre + tous ses renforts)
     for idx, row in df.iterrows():
         parent = row['parent_row']
