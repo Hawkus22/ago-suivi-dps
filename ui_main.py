@@ -1200,7 +1200,7 @@ th{{background:#1E3C72;color:#fff}}
         body.setContentsMargins(10, 10, 10, 0)
 
         # Logo gauche
-        logo_path = resource_path(os.path.join("pictures", "PHARE Logo.png"))
+        logo_path = resource_path(os.path.join("pictures", "Hawkus Corp 1.png"))
         if os.path.exists(logo_path):
             lbl_logo = QLabel()
             pixmap = QPixmap(logo_path).scaledToWidth(145, Qt.TransformationMode.SmoothTransformation)
