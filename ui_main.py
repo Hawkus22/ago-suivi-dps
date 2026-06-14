@@ -106,7 +106,7 @@ class TwoLineHeaderView(QHeaderView):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AGO - Suivi Automatisé des DPS")
+        self.setWindowTitle("PHARE - Suivi Départemental des DPS")
         self.resize(1400, 800)
         self.current_semaine = None
         self.init_ui()
@@ -766,7 +766,7 @@ class MainWindow(QMainWindow):
 
     def ouvrir_aide(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle("Guide d'utilisation — AGO Suivi DPS")
+        dlg.setWindowTitle("Guide d'utilisation — PHARE")
         dlg.resize(620, 520)
         layout = QVBoxLayout(dlg)
 
@@ -787,7 +787,8 @@ class MainWindow(QMainWindow):
   .ja   { background:#FFE699; }
 </style>
 
-<h2>AGO — Suivi Automatisé des DPS</h2>
+<h2>PHARE — Suivi Départemental des DPS</h2>
+<p style="color:#555;font-size:11px"><i>Plateforme Harmonisée d'Affectation des Renforts et des Effectifs</i></p>
 
 <h3>0. Données partagées entre postes</h3>
 <ul>
@@ -1086,7 +1087,7 @@ th{{background:#1E3C72;color:#fff}}
         import os
         from PyQt6.QtGui import QPixmap
         dlg = QDialog(self)
-        dlg.setWindowTitle("À propos — AGO Suivi DPS")
+        dlg.setWindowTitle("À propos — PHARE")
         dlg.setFixedSize(500, 240)
         main_layout = QVBoxLayout(dlg)
 
@@ -1095,7 +1096,7 @@ th{{background:#1E3C72;color:#fff}}
         body.setContentsMargins(10, 10, 10, 0)
 
         # Logo gauche
-        logo_path = resource_path("Hawkus Corp 1.png")
+        logo_path = resource_path(os.path.join("pictures", "PHARE Logo.png"))
         if os.path.exists(logo_path):
             lbl_logo = QLabel()
             pixmap = QPixmap(logo_path).scaledToWidth(145, Qt.TransformationMode.SmoothTransformation)
@@ -1114,7 +1115,9 @@ th{{background:#1E3C72;color:#fff}}
         right = QVBoxLayout()
         right.setSpacing(4)
 
-        lbl_app = QLabel(f"<b style='font-size:13px;color:#1E3C72'>{APP_NAME}</b>")
+        lbl_app = QLabel(f"<b style='font-size:14px;color:#1E3C72'>{APP_NAME}</b><br>"
+                         f"<span style='font-size:10px;color:#888'>"
+                         f"Plateforme Harmonisée d'Affectation<br>des Renforts et des Effectifs</span>")
         lbl_ver = QLabel(f"Version <b>{VERSION}</b> &nbsp;·&nbsp; {BUILD}")
         lbl_ver.setStyleSheet("color:#555; font-size:11px;")
 

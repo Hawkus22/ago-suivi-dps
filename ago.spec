@@ -1,4 +1,4 @@
-# ago.spec — PyInstaller spec pour AGO Suivi DPS
+# ago.spec — PyInstaller spec pour PHARE
 # Usage : pyinstaller ago.spec
 # Prérequis : pip install pyinstaller  (voir requirements-dev.txt)
 # -*- mode: python ; coding: utf-8 -*-
@@ -15,10 +15,7 @@ a = Analysis(
     binaries=[],
     datas=[
         # Assets graphiques embarqués dans l'exécutable
-        ('Hawkus Corp 1.png',     '.'),
-        ('Hawkus Corp 1 tel.png', '.'),
-        ('Hawkus Corp 16_9.png',  '.'),
-        ('Hawkus Corp 2.png',     '.'),
+        ('pictures/*.png', 'pictures'),
     ],
     hiddenimports=[
         'PyQt6.QtCore',
@@ -61,7 +58,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name=f'AGO-Suivi-v{VERSION}',
+    name=f'PHARE-v{VERSION}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -76,6 +73,6 @@ exe = EXE(
     entitlements_file=None,
     # icon='icon.ico',  # Décommenter avec un fichier .ico Windows valide
     #
-    # Note : ago_suivi.db et ago_config.ini NE SONT PAS embarqués.
-    # ago_config.ini doit être placé à côté du .exe avec l'URL Supabase.
+    # Note : ago_config.ini N'EST PAS embarqué.
+    # Il doit être placé à côté de l'exécutable avec l'URL Supabase.
 )

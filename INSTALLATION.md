@@ -1,4 +1,4 @@
-# AGO — Suivi Automatisé des DPS
+# PHARE — Suivi Départemental des DPS
 ## Guide d'installation — v1.1.0
 
 ---
@@ -9,7 +9,7 @@ Vous devez recevoir **deux fichiers** de la part de votre référent :
 
 | Fichier | Rôle |
 |---|---|
-| `AGO-Suivi-v1.1.0.exe` | L'application complète (aucune installation requise) |
+| `PHARE-v1.1.0.exe` | L'application complète (aucune installation requise) |
 | `ago_config.ini` | Connexion à la base de données partagée |
 
 > **Ces deux fichiers doivent toujours rester dans le même dossier.**
@@ -22,22 +22,22 @@ Vous devez recevoir **deux fichiers** de la part de votre référent :
 
 Créez un dossier sur votre poste, par exemple :
 ```
-C:\AGO\
+C:\PHARE\
 ```
 
 **2. Copier les deux fichiers dans ce dossier**
 
 ```
-C:\AGO\
-    AGO-Suivi-v1.1.0.exe
+C:\PHARE\
+    PHARE-v1.1.0.exe
     ago_config.ini
 ```
 
 **3. Lancer l'application**
 
-Double-cliquez sur `AGO-Suivi-v1.1.0.exe`.
+Double-cliquez sur `PHARE-v1.1.0.exe`.
 
-> ⚠️ **Alerte Windows SmartScreen** — normal pour une application non signée.  
+> ⚠️ **Alerte Windows SmartScreen** — normal pour une application non signée.
 > Cliquez **"Informations complémentaires"** puis **"Exécuter quand même"**.
 
 L'application s'ouvre. Si c'est le premier lancement, la liste des semaines est vide — c'est normal.
@@ -85,10 +85,9 @@ Le fichier `ago_config.ini` contient l'URL de connexion à la base de données S
 url = postgresql://postgres:MOT_DE_PASSE@db.xxx.supabase.co:5432/postgres
 ```
 
-> ⚠️ Ne communiquez pas ce fichier en dehors de l'antenne.  
-> En cas de compromission du mot de passe, changez-le sur [supabase.com](https://supabase.com) et redistribuez le fichier.
+> ⚠️ Ne communiquez pas ce fichier en dehors de l'antenne.
 
 ---
 
-*AGO Suivi DPS v1.1.0 — Hawkus Corp © 2026*  
+*PHARE v1.1.0 — Hawkus Corp © 2026*
 *Développé par Vachon Marc-Olivier — Mis à disposition pour l'Antenne de Lannion (22 LNP)*

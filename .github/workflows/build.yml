@@ -39,11 +39,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.nom }}
-          path: dist/AGO-Suivi-v*.exe
+          path: dist/PHARE-v*.exe
 
       - name: Uploader l'exécutable macOS
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.nom }}
-          path: dist/AGO-Suivi-v*
+          path: dist/PHARE-v*
