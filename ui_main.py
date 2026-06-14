@@ -147,6 +147,12 @@ class MainWindow(QMainWindow):
         self.combo_semaine.currentIndexChanged.connect(self.on_semaine_changed)
         toolbar.addWidget(self.combo_semaine)
 
+        self.btn_nouvelle_semaine = QPushButton("📅 Nouvelle semaine")
+        self.btn_nouvelle_semaine.clicked.connect(self.creer_semaine)
+        self.btn_nouvelle_semaine.setStyleSheet("font-weight: bold; padding: 8px; background-color: #2196F3; color: white;")
+        self.btn_nouvelle_semaine.setToolTip("Créer une nouvelle semaine vide sans importer de fichier.")
+        toolbar.addWidget(self.btn_nouvelle_semaine)
+
         toolbar.addStretch()
 
         self.btn_reinjecter = QPushButton("🔄 Réinjecter les renforts")
@@ -254,6 +260,58 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Erreur", f"Impossible de lire l'export :\n{e}")
 
     # --------------------------------------------------------- sélecteur semaine
+
+    def creer_semaine(self):
+        import datetime as dt
+        from PyQt6.QtWidgets import QDialog, QFormLayout, QSpinBox, QLineEdit, QDialogButtonBox
+
+        today  = dt.date.today()
+        monday = today - dt.timedelta(days=today.weekday())
+        sunday = monday + dt.timedelta(days=6)
+        week_n = today.isocalendar()[1]
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Nouvelle semaine")
+        dlg.setFixedWidth(340)
+        form = QFormLayout(dlg)
+
+        spin = QSpinBox()
+        spin.setRange(1, 53)
+        spin.setValue(week_n)
+
+        edit_deb = QLineEdit(monday.strftime('%Y-%m-%d'))
+        edit_fin = QLineEdit(sunday.strftime('%Y-%m-%d'))
+
+        form.addRow("Numéro de semaine :", spin)
+        form.addRow("Date début (YYYY-MM-DD) :", edit_deb)
+        form.addRow("Date fin (YYYY-MM-DD) :", edit_fin)
+
+        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        numero = spin.value()
+        date_debut = edit_deb.text().strip()
+        date_fin   = edit_fin.text().strip()
+
+        try:
+            conn = get_conn()
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO semaines (numero, date_debut, date_fin) VALUES (%s, %s, %s)"
+                " ON CONFLICT (numero) DO NOTHING",
+                (numero, date_debut, date_fin)
+            )
+            conn.commit()
+            conn.close()
+            self.refresh_semaine_selector(select_week=numero)
+            self.statusBar().showMessage(f"Semaine {numero} créée.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Impossible de créer la semaine :\n{e}")
 
     def refresh_semaine_selector(self, select_week=None):
         self.combo_semaine.blockSignals(True)
