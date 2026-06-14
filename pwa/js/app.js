@@ -22,6 +22,35 @@ if ('serviceWorker' in navigator) {
 
 initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ─── Installation PWA ──────────────────────────────────────────────────────
+
+let _installPrompt = null;
+
+// Android Chrome : on capture le prompt natif
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  document.getElementById('install-banner').style.display = 'block';
+});
+
+// iOS Safari : pas de prompt natif, on affiche une instruction manuelle
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone;
+if (isIOS && !isInStandaloneMode) {
+  document.getElementById('ios-hint').style.display = 'block';
+}
+
+document.getElementById('btn-install').onclick = async () => {
+  if (!_installPrompt) return;
+  _installPrompt.prompt();
+  const { outcome } = await _installPrompt.userChoice;
+  if (outcome === 'accepted') {
+    document.getElementById('install-banner').style.display = 'none';
+  }
+  _installPrompt = null;
+};
+
 // Écoute les changements de session (connexion / déconnexion / recovery)
 getSupabase().auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
