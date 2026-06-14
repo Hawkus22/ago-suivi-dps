@@ -472,8 +472,9 @@ class MainWindow(QMainWindow):
                         nom_item.setData(_DPS_ID_ROLE, d["id"])
                         self.table.setItem(row_index, col_offset, nom_item)
 
-                        # Engagés : valeur calculée, non éditable pour les parents
-                        eng_item = QTableWidgetItem(str(effective_nb))
+                        # Engagés : propres + renforts entre parenthèses si applicable
+                        eng_text = f"{d['nb']}(+{renforts_nb})" if renforts_nb > 0 else str(effective_nb)
+                        eng_item = QTableWidgetItem(eng_text)
                         eng_item.setFlags(eng_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                         self.table.setItem(row_index, col_offset + 1, eng_item)
 
