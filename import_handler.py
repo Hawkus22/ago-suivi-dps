@@ -69,7 +69,7 @@ def importer_evenements(fichier_path):
     logs.append(f"📂 Fichier : {nom_fichier}")
     logs.append(f"📋 {len(df)} événements lus")
 
-    # Numéro d'activité = colonne A (identique pour l'activité principale et son renfort)
+    # Numéro d'activité = colonne A (unique par ligne — pas partagé entre un DPS et ses renforts)
     df['num_activite'] = df.iloc[:, 0]
 
     df['Organisateur'] = df['Organisateur'].astype(str).str.strip()
